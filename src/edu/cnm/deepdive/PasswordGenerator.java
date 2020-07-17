@@ -8,8 +8,8 @@ public class PasswordGenerator {
   private static final String UPPER_CASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   private static final String LOWER_CASE = "abcdefghijklmnopqrstuvwxyz";
   private static final String DIGITS = "0123456789";
-  private static final String PUNCTUATION = "~`!@#$%&*()_-+={}[]\\;:,./?";
-  private static final String AMBIGUOUS = "[0O1l]";
+  private static final String PUNCTUATION = "~`!@#$%&*()-_+={}[]\\:;,./?";
+  private static final String AMBIGUOUS = "[O0l1]";
 
   private final Random rng;
   private final char[] pool;
@@ -26,14 +26,50 @@ public class PasswordGenerator {
     this.pool = pool;
     this.upperCaseRequired = upperCaseRequired;
     this.lowerCaseRequired = lowerCaseRequired;
-
     this.digitsRequired = digitsRequired;
     this.punctuationRequired = punctuationRequired;
     this.ambiguousAllowed = ambiguousAllowed;
   }
 
-  public String generate(int length) {
-    return null; //TODO implement according to spec
+  public String generate(int length) throws IllegalArgumentException {
+    StringBuilder builder = new StringBuilder(length);
+    if (upperCaseRequired) {
+      builder.append(selectRestricted(UPPER_CASE));
+    }
+    if (lowerCaseRequired) {
+      builder.append(selectRestricted(LOWER_CASE));
+    }
+    if (digitsRequired) {
+      builder.append(selectRestricted(DIGITS));
+    }
+    if (punctuationRequired) {
+      builder.append(PUNCTUATION.charAt(rng.nextInt(PUNCTUATION.length())));
+    }
+    if (length < builder.length()) {
+      throw new IllegalArgumentException("Specified length is insufficient for password requirements");
+    }
+    for (int i = builder.length(); i < length; i++) {
+      builder.append(pool[rng.nextInt(pool.length)]);
+    }
+    char[] chars = builder.toString().toCharArray();
+    for (int i = chars.length - 1; i > 0; i--) {
+      int position = rng.nextInt(i + 1);
+      if (position != i) {
+        char temp = chars[i];
+        chars[i] = chars[position];
+        chars[position] = temp;
+      }
+    }
+    return new String(chars);
+  }
+
+  private String selectRestricted(String pool) {
+    String selected;
+    do {
+      int position = rng.nextInt(pool.length());
+      selected = pool.substring(position, position + 1);
+    } while (!ambiguousAllowed && selected.matches(AMBIGUOUS));
+    return selected;
   }
 
   public static class Builder {
@@ -49,7 +85,7 @@ public class PasswordGenerator {
     private boolean punctuationRequired;
     private boolean ambiguousAllowed;
 
-    public Builder allowUpperCase() {
+    public Builder allowUpperCase()  {
       return allowUpperCase(true);
     }
 
@@ -94,7 +130,7 @@ public class PasswordGenerator {
       return this;
     }
 
-    public Builder requireLowerCase() throws IllegalStateException {
+    public Builder requireLowerCase() {
       return requireLowerCase(true);
     }
 
@@ -130,7 +166,7 @@ public class PasswordGenerator {
       return this;
     }
 
-    public Builder userRng(Random rng) {
+    public Builder useRng(Random rng) {
       this.rng = rng;
       return this;
     }
@@ -158,8 +194,8 @@ public class PasswordGenerator {
       if (punctuationAllowed) {
         pool.append(PUNCTUATION);
       }
-     String generatorPool =
-         ambiguousAllowed ? pool.toString() : pool.toString().replaceAll(AMBIGUOUS, "");
+      String generatorPool =
+          ambiguousAllowed ? pool.toString() : pool.toString().replaceAll(AMBIGUOUS, "");
       return new PasswordGenerator(
           (rng != null) ? rng : new SecureRandom(),
           generatorPool.toCharArray(),
@@ -174,4 +210,3 @@ public class PasswordGenerator {
   }
 
 }
-
